@@ -1,0 +1,27 @@
+基于以下对话内容，提取所有实体信息：
+
+当前对话：
+系统：{system_query}
+用户：{user_response}
+
+历史对话：
+{dialogue_history}
+
+请提取以下信息：
+1. 实体名称
+2. 实体类型（人物/地点/时间/事件/活动）
+3. 实体属性
+
+请以JSON格式返回，例如：
+{{
+  "entities": [
+    {{
+      "name": "篮球",
+      "type": "activity",
+      "attributes": {{
+        "time": "从小",
+        "nature": "运动"
+      }}
+    }}
+  ]
+}} 

@@ -1,0 +1,10 @@
+{
+    "_type": "prompt",
+    "input_variables": [
+      "system_query",
+      "user_response",
+      "window_entities",
+      "new_entities"
+    ],
+    "template_path": "coreference_resolution.txt"
+}

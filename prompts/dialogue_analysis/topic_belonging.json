@@ -1,0 +1,11 @@
+{
+    "_type": "prompt",
+    "input_variables": [
+      "system_query",
+      "user_response",
+      "dialogue_history",
+      "entity_info",
+      "primary_topics"
+    ],
+    "template_path": "topic_belonging.txt"
+}

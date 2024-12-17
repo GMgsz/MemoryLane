@@ -1,0 +1,9 @@
+{
+    "_type": "prompt",
+    "input_variables": [
+      "system_query",
+      "user_response",
+      "dialogue_history"
+    ],
+    "template_path": "entity_extraction.txt"
+}

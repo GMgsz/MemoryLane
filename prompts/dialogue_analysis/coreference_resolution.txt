@@ -1,0 +1,29 @@
+基于以下对话内容，分析实体间的指代关系：
+
+当前对话：
+系统：{system_query}
+用户：{user_response}
+
+历史对话中的实体：
+{window_entities}
+
+当前对话中的新实体：
+{new_entities}
+
+请分析：
+1. 新实体是否指代历史对话中的实体
+2. 是否需要更新已知实体的属性
+
+请以JSON格式返回，例如：
+{{
+  "references": [
+    {{
+      "current_mention": "组队",
+      "refers_to": "篮球",
+      "relationship": "解决方案",
+      "update_attributes": {{
+        "solution": "组队应对"
+      }}
+    }}
+  ]
+}} 

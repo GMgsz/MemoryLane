@@ -1,0 +1,8 @@
+{
+    "_type": "prompt",
+    "input_variables": [
+      "long_term_memory",
+      "short_term_memory"
+    ],
+    "template_path": "main.txt"
+}
