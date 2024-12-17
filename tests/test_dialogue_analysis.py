@@ -1,3 +1,9 @@
+import os
+
+# 确保测试目录存在
+test_dir = os.path.join(os.path.dirname(__file__), "test_data")
+os.makedirs(test_dir, exist_ok=True)
+
 from Agent.DialogueAnalysisAgent import DialogueAnalysisAgent
 import json
 import os
@@ -30,11 +36,13 @@ def test_dialogue_analysis():
     
     # 1. 初始化智能体
     llm = ChatZhipuAI(
-        model=os.getenv("ZHIPUAI_API_Model"),
-        api_key=os.getenv("ZHIPU_API_KEY"),
+        model=os.getenv("ZHIPUAI_MODEL_NAME"),
+        api_key=os.getenv("ZHIPUAI_API_KEY"),
         temperature=0,
     )
-    agent = DialogueAnalysisAgent(llm=llm)
+    # 使用测试数据库路径
+    test_db_path = os.getenv('TEST_DB_PATH', 'tests/test_data/test.db')
+    agent = DialogueAnalysisAgent(llm=llm, db_path=test_db_path)
     
     # 2. 测试对话片段
     dialogues = [
@@ -68,11 +76,13 @@ def test_dialogue_analysis_basketball():
     
     # 1. 初始化智能体
     llm = ChatZhipuAI(
-        model=os.getenv("ZHIPUAI_API_Model"),
-        api_key=os.getenv("ZHIPU_API_KEY"),
+        model=os.getenv("ZHIPUAI_MODEL_NAME"),
+        api_key=os.getenv("ZHIPUAI_API_KEY"),
         temperature=0,
     )
-    agent = DialogueAnalysisAgent(llm=llm)
+    # 使用测试数据库路径
+    test_db_path = os.getenv('TEST_DB_PATH', 'tests/test_data/test.db')
+    agent = DialogueAnalysisAgent(llm=llm, db_path=test_db_path)
     
     # 2. 测试对话片段
     dialogues = [

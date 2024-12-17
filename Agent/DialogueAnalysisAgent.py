@@ -55,13 +55,19 @@ class DialogueAnalysisAgent:
         llm: BaseChatModel,
         embeddings = None,
         window_size: int = 3,
-        db_path: str = "dialogue_analysis.db"
+        db_path: str = None,
+        db_manager=None
     ):
         self.llm = llm
         self.window_size = window_size
         
         # 初始化数据库管理器
-        self.db_manager = DatabaseManager(db_path=db_path)
+        if db_manager is None:
+            if db_path is None:
+                # 使用默认的生产环境数据库路径
+                db_path = os.getenv('PRODUCTION_DB_PATH', 'db/production/memory_lane.db')
+            db_manager = DatabaseManager(db_path=db_path)
+        self.db_manager = db_manager
         if embeddings:
             self.db_manager.init_vector_store(embeddings)
         
@@ -105,7 +111,7 @@ class DialogueAnalysisAgent:
             self.topic_prompt = topic_prompt_builder.build().partial()
             self.topic_chain = (self.topic_prompt | self.llm | StrOutputParser())
         except Exception as e:
-            print(f"初始化���示模板失败: {str(e)}")
+            print(f"初始化提示模板失败: {str(e)}")
             raise
 
     def process_dialogue(
@@ -161,7 +167,7 @@ class DialogueAnalysisAgent:
 
     def _clean_llm_response(self, response: str) -> str:
         """清理LLM的响应，移除Markdown代码块标记"""
-        # 移除开头的```json或```
+        # 移除开头的```json���```
         if response.startswith('```'):
             response = response.split('\n', 1)[1]
         # 移除结尾的```

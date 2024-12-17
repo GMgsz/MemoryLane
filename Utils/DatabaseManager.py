@@ -6,81 +6,178 @@ from pathlib import Path
 import logging
 import os
 from langchain_chroma import Chroma
+import uuid
+from langchain_community.embeddings import ZhipuAIEmbeddings
+from unittest.mock import MagicMock
 
 logger = logging.getLogger(__name__)
 
 class DatabaseManager:
     """数据库管理类"""
     
-    def __init__(self, db_path: str = "dialogue_analysis.db"):
+    def __init__(self, db_path: str = None):
         """初始化数据库管理器"""
+        if db_path is None:
+            # 使用默认的生产环境数据库路径
+            db_path = os.getenv('PRODUCTION_DB_PATH', 'db/production/memory_lane.db')
+            
+        # 确保数据库目录存在
+        db_dir = os.path.dirname(db_path)
+        os.makedirs(db_dir, exist_ok=True)
+        
         self.db_path = db_path
         self._init_database()
+        self._init_vector_store()
     
     def _init_database(self):
-        """初始化数据库表"""
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            
-            # 创建对话表
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS dialogues (
-                    id TEXT PRIMARY KEY,
-                    timestamp TEXT,
-                    system_query TEXT,
-                    user_response TEXT
-                )
-            """)
-            
-            # 创建实体表
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS entities (
-                    id TEXT PRIMARY KEY,
-                    name TEXT,
-                    type TEXT,
-                    attributes JSON
-                )
-            """)
-            
-            # 创建话题表
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS topics (
-                    id TEXT PRIMARY KEY,
-                    name TEXT,
-                    primary_category TEXT
-                )
-            """)
-            
-            # 创建实体-话题关联表
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS entity_topic_relations (
-                    entity_id TEXT,
-                    topic_id TEXT,
-                    score REAL,
-                    PRIMARY KEY (entity_id, topic_id),
-                    FOREIGN KEY (entity_id) REFERENCES entities(id),
-                    FOREIGN KEY (topic_id) REFERENCES topics(id)
-                )
-            """)
-            
-            # 创建对话-实体关联表
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS dialogue_entity_relations (
-                    dialogue_id TEXT,
-                    entity_id TEXT,
-                    PRIMARY KEY (dialogue_id, entity_id),
-                    FOREIGN KEY (dialogue_id) REFERENCES dialogues(id),
-                    FOREIGN KEY (entity_id) REFERENCES entities(id)
-                )
-            """)
-            
-            conn.commit()
+        """初始化数据库"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                
+                # 创建dialogues表
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS dialogues (
+                        id TEXT PRIMARY KEY,
+                        timestamp TEXT NOT NULL,
+                        system_query TEXT NOT NULL,
+                        user_response TEXT NOT NULL
+                    )
+                """)
+                
+                # 创建entities表
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS entities (
+                        id TEXT PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        type TEXT NOT NULL,
+                        attributes TEXT NOT NULL
+                    )
+                """)
+                
+                # 创建dialogue_entity_relations表
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS dialogue_entity_relations (
+                        dialogue_id TEXT,
+                        entity_id TEXT,
+                        PRIMARY KEY (dialogue_id, entity_id),
+                        FOREIGN KEY (dialogue_id) REFERENCES dialogues (id),
+                        FOREIGN KEY (entity_id) REFERENCES entities (id)
+                    )
+                """)
+                
+                # 创建topics表
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS topics (
+                        id TEXT PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        primary_category TEXT NOT NULL
+                    )
+                """)
+                
+                # 创建entity_topic_relations表
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS entity_topic_relations (
+                        entity_id TEXT,
+                        topic_id TEXT,
+                        score REAL DEFAULT 1.0,
+                        PRIMARY KEY (entity_id, topic_id),
+                        FOREIGN KEY (entity_id) REFERENCES entities (id),
+                        FOREIGN KEY (topic_id) REFERENCES topics (id)
+                    )
+                """)
+                
+                # 创建clusters表
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS clusters (
+                        id TEXT PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        primary_topic TEXT NOT NULL,
+                        state TEXT NOT NULL,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                
+                # 创建entity_cluster_relations表
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS entity_cluster_relations (
+                        entity_id TEXT,
+                        cluster_id TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        PRIMARY KEY (entity_id, cluster_id),
+                        FOREIGN KEY (entity_id) REFERENCES entities (id),
+                        FOREIGN KEY (cluster_id) REFERENCES clusters (id)
+                    )
+                """)
+                
+                # 创建generated_contents表
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS generated_contents (
+                        id TEXT PRIMARY KEY,
+                        cluster_id TEXT NOT NULL,
+                        content TEXT NOT NULL,
+                        version INTEGER DEFAULT 1,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (cluster_id) REFERENCES clusters (id)
+                    )
+                """)
+                
+                conn.commit()
+        except Exception as e:
+            logger.error(f"初始化数据库失败: {str(e)}")
+            raise
     
-    def save_dialogue(self, dialogue_id: str, system_query: str, user_response: str, entity_ids: List[str]):
+    def _init_vector_store(self):
+        """初始化向量存储"""
+        try:
+            # 根据数据库路径确定向量存储路径
+            if 'test' in self.db_path:
+                vector_store_path = os.getenv('TEST_VECTOR_STORE_PATH', 'tests/test_data/vector_store')
+            else:
+                vector_store_path = os.getenv('PRODUCTION_VECTOR_STORE_PATH', 'db/production/vector_store')
+            
+            os.makedirs(vector_store_path, exist_ok=True)
+            
+            embedding_function = ZhipuAIEmbeddings(
+                model=os.getenv("ZHIPUAI_EMBEDDING_MODEL"),
+                api_key=os.getenv("ZHIPUAI_EMBEDDING_KEY")
+            )
+            self.vector_store = Chroma(
+                collection_name="dialogues",
+                persist_directory=vector_store_path,
+                embedding_function=embedding_function
+            )
+        except Exception as e:
+            logger.error(f"初始化向量存储失败: {str(e)}")
+            self.vector_store = None  # 测试时可以没有向量存储
+    
+    async def save_dialogue(self, dialogue_id: str, system_query: str, user_response: str, entity_ids: List[str]):
         """保存对话及其关联的实体"""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
+                
+                # 先创建表（如果不存在）
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS dialogues (
+                        id TEXT PRIMARY KEY,
+                        timestamp TEXT NOT NULL,
+                        system_query TEXT NOT NULL,
+                        user_response TEXT NOT NULL
+                    )
+                """)
+                
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS dialogue_entity_relations (
+                        dialogue_id TEXT,
+                        entity_id TEXT,
+                        PRIMARY KEY (dialogue_id, entity_id),
+                        FOREIGN KEY (dialogue_id) REFERENCES dialogues (id),
+                        FOREIGN KEY (entity_id) REFERENCES entities (id)
+                    )
+                """)
                 
                 # 使用 INSERT OR REPLACE 而不是 INSERT
                 cursor.execute(
@@ -94,7 +191,7 @@ class DatabaseManager:
                     (dialogue_id,)
                 )
                 
-                # 保存新的对话-实体关联
+                # 保存新的对话-实体关系
                 for entity_id in entity_ids:
                     cursor.execute(
                         "INSERT INTO dialogue_entity_relations (dialogue_id, entity_id) VALUES (?, ?)",
@@ -112,7 +209,29 @@ class DatabaseManager:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
                 
-                # 保��实体
+                # 先创建表（如果不存在）
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS entities (
+                        id TEXT PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        type TEXT NOT NULL,
+                        attributes TEXT NOT NULL
+                    )
+                """)
+                
+                # 创建entity_topic_relations表
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS entity_topic_relations (
+                        entity_id TEXT,
+                        topic_id TEXT,
+                        score REAL DEFAULT 1.0,
+                        PRIMARY KEY (entity_id, topic_id),
+                        FOREIGN KEY (entity_id) REFERENCES entities (id),
+                        FOREIGN KEY (topic_id) REFERENCES topics (id)
+                    )
+                """)
+                
+                # 保存实体
                 cursor.execute(
                     "INSERT OR REPLACE INTO entities (id, name, type, attributes) VALUES (?, ?, ?, ?)",
                     (entity_id, name, entity_type, json.dumps(attributes, ensure_ascii=False))
@@ -128,6 +247,27 @@ class DatabaseManager:
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
+                
+                # 先创建表（如果不存在）
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS topics (
+                        id TEXT PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        primary_category TEXT NOT NULL
+                    )
+                """)
+                
+                # 创建entity_topic_relations表
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS entity_topic_relations (
+                        entity_id TEXT,
+                        topic_id TEXT,
+                        score REAL DEFAULT 1.0,
+                        PRIMARY KEY (entity_id, topic_id),
+                        FOREIGN KEY (entity_id) REFERENCES entities (id),
+                        FOREIGN KEY (topic_id) REFERENCES topics (id)
+                    )
+                """)
                 
                 # 保存话题
                 cursor.execute(
@@ -231,11 +371,21 @@ class DatabaseManager:
             logger.error(f"获取实体话题失败: {str(e)}")
             raise
 
-    def save_entities_batch(self, entities: List[Dict]):
+    async def save_entities_batch(self, entities: List[Dict]):
         """批量保存实体"""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
+                
+                # 先创建表（如果不存在）
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS entities (
+                        id TEXT PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        type TEXT NOT NULL,
+                        attributes TEXT NOT NULL
+                    )
+                """)
                 
                 cursor.executemany(
                     "INSERT OR REPLACE INTO entities (id, name, type, attributes) VALUES (?, ?, ?, ?)",
@@ -325,7 +475,7 @@ class DatabaseManager:
                     for row in results
                 ]
         except Exception as e:
-            logger.error(f"获取���话实体失败: {str(e)}")
+            logger.error(f"获取对话实体失败: {str(e)}")
             raise
 
     def get_topic_entities(self, topic_id: str) -> List[Dict]:
@@ -413,7 +563,7 @@ class DatabaseManager:
                 for doc, score in results
             ]
         except Exception as e:
-            logger.error(f"搜索相似对话���败: {str(e)}")
+            logger.error(f"搜索相似对话失败: {str(e)}")
             raise
 
     def get_dialogues_by_time_range(self, start_time: str, end_time: str) -> List[Dict]:
@@ -496,3 +646,256 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"获取话题统计失败: {str(e)}")
             raise
+
+    def create_cluster(self, name: str, primary_topic: str, state: str = "ACCUMULATING") -> str:
+        """创建新聚类"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cluster_id = f"cluster_{str(uuid.uuid4())[:8]}"
+                cursor.execute("""
+                    INSERT INTO clusters (id, name, primary_topic, state)
+                    VALUES (?, ?, ?, ?)
+                """, (cluster_id, name, primary_topic, state))
+                conn.commit()
+                logger.info(f"创建新聚类: {cluster_id}, {name}, {primary_topic}, {state}")
+                return cluster_id
+        except Exception as e:
+            logger.error(f"创建聚类失败: {str(e)}")
+            raise
+
+    def add_entity_to_cluster(self, entity_id: str, cluster_id: str):
+        """添加实体到聚类"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    INSERT INTO entity_cluster_relations (entity_id, cluster_id)
+                    VALUES (?, ?)
+                """, (entity_id, cluster_id))
+                conn.commit()
+        except sqlite3.IntegrityError as e:
+            logger.error(f"添加实体到聚类失败(外键约束): {str(e)}")
+            raise
+        except Exception as e:
+            logger.error(f"添加实体到聚类失败: {str(e)}")
+            raise
+
+    def get_unprocessed_entities(self) -> List[Dict]:
+        """获取未处理的实体（未分配到聚类的实体）"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                
+                cursor.execute("""
+                    SELECT e.id, e.name, e.type, e.attributes, t.primary_category
+                    FROM entities e
+                    LEFT JOIN entity_topic_relations etr ON e.id = etr.entity_id
+                    LEFT JOIN topics t ON etr.topic_id = t.id
+                    LEFT JOIN entity_cluster_relations ecr ON e.id = ecr.entity_id
+                    WHERE ecr.cluster_id IS NULL
+                """)
+                
+                results = cursor.fetchall()
+                return [
+                    {
+                        "id": row[0],
+                        "name": row[1],
+                        "type": row[2],
+                        "attributes": json.loads(row[3]),
+                        "primary_topic": row[4]
+                    }
+                    for row in results
+                ]
+        except Exception as e:
+            logger.error(f"获取未处理实体失败: {str(e)}")
+            raise
+
+    def get_cluster_by_topic(self, primary_topic: str) -> List[Dict]:
+        """获取主题下的所有聚类"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT id, name, primary_topic, state, created_at, updated_at
+                    FROM clusters
+                    WHERE primary_topic = ?
+                """, (primary_topic,))
+                
+                results = cursor.fetchall()
+                return [
+                    {
+                        "id": row[0],
+                        "name": row[1],
+                        "primary_topic": row[2],
+                        "state": row[3],
+                        "created_at": row[4],
+                        "updated_at": row[5]
+                    }
+                    for row in results
+                ]
+        except Exception as e:
+            logger.error(f"获取主题聚类失败: {str(e)}")
+            raise
+
+    def get_clusters_by_state(self, state: str) -> List[Dict]:
+        """获取特定状态的聚类"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT id, name, primary_topic, state, created_at, updated_at
+                    FROM clusters
+                    WHERE state = ?
+                """, (state,))
+                
+                results = cursor.fetchall()
+                return [
+                    {
+                        "id": row[0],
+                        "name": row[1],
+                        "primary_topic": row[2],
+                        "state": row[3],
+                        "created_at": row[4],
+                        "updated_at": row[5]
+                    }
+                    for row in results
+                ]
+        except Exception as e:
+            logger.error(f"获取聚类失败: {str(e)}")
+            raise
+
+    def get_cluster_entity_count(self, cluster_id: str) -> int:
+        """获取聚类中的实体数量"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT COUNT(*)
+                    FROM entity_cluster_relations
+                    WHERE cluster_id = ?
+                """, (cluster_id,))
+                
+                return cursor.fetchone()[0]
+        except Exception as e:
+            logger.error(f"获取聚类实体数量失败: {str(e)}")
+            raise
+
+    def get_cluster(self, cluster_id: str) -> Dict:
+        """获取聚类信息"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT id, name, primary_topic, state, created_at, updated_at
+                    FROM clusters
+                    WHERE id = ?
+                """, (cluster_id,))
+                
+                row = cursor.fetchone()
+                if row:
+                    return {
+                        "id": row[0],
+                        "name": row[1],
+                        "primary_topic": row[2],
+                        "state": row[3],
+                        "created_at": row[4],
+                        "updated_at": row[5]
+                    }
+                return None
+        except Exception as e:
+            logger.error(f"获取聚类信息失败: {str(e)}")
+            raise
+
+    def get_cluster_entities(self, cluster_id: str) -> List[Dict]:
+        """获取聚类中的所有实体"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT e.id, e.name, e.type, e.attributes
+                    FROM entities e
+                    JOIN entity_cluster_relations ecr ON e.id = ecr.entity_id
+                    WHERE ecr.cluster_id = ?
+                """, (cluster_id,))
+                
+                results = cursor.fetchall()
+                return [
+                    {
+                        "id": row[0],
+                        "name": row[1],
+                        "type": row[2],
+                        "attributes": json.loads(row[3])
+                    }
+                    for row in results
+                ]
+        except Exception as e:
+            logger.error(f"获取聚类实体失败: {str(e)}")
+            raise
+
+    def update_cluster_state(self, cluster_id: str, new_state: str):
+        """更新聚类状态"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    UPDATE clusters
+                    SET state = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                """, (new_state, cluster_id))
+                conn.commit()
+        except Exception as e:
+            logger.error(f"更新聚类状态失败: {str(e)}")
+            raise
+
+    def save_generated_content(self, cluster_id: str, content: str) -> str:
+        """保存生成的内容"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                content_id = f"content_{str(uuid.uuid4())[:8]}"
+                cursor.execute("""
+                    INSERT INTO generated_contents (id, cluster_id, content)
+                    VALUES (?, ?, ?)
+                """, (content_id, cluster_id, content))
+                conn.commit()
+                return content_id
+        except Exception as e:
+            logger.error(f"保存生成内容失败: {str(e)}")
+            raise
+
+    def get_cluster_contents(self, cluster_id: str) -> List[Dict]:
+        """获取聚类的生成内容"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT id, content, version, created_at
+                    FROM generated_contents
+                    WHERE cluster_id = ?
+                    ORDER BY version DESC
+                """, (cluster_id,))
+                
+                results = cursor.fetchall()
+                return [
+                    {
+                        "id": row[0],
+                        "content": row[1],
+                        "version": row[2],
+                        "created_at": row[3]
+                    }
+                    for row in results
+                ]
+        except Exception as e:
+            logger.error(f"获取聚类内容失败: {str(e)}")
+            raise
+
+    def close(self):
+        """关闭数据库连接"""
+        try:
+            if hasattr(self, 'vector_store'):
+                if hasattr(self.vector_store, '_client') and not isinstance(self.vector_store, MagicMock):
+                    self.vector_store._client.close()
+                del self.vector_store
+        except Exception as e:
+            logger.warning(f"关闭向量存储失败: {str(e)}")

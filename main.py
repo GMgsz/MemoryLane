@@ -17,8 +17,8 @@ logger = logging.getLogger(__name__)
 def init_vector_store(embeddings):
     """初始化向量数据库，添加错误处理"""
     try:
-        # 创建持久化目录
-        persist_directory = "./chroma_db"
+        # 使用标准的生产环境向量存储路径
+        persist_directory = os.getenv('PRODUCTION_VECTOR_STORE_PATH', 'db/production/vector_store')
         os.makedirs(persist_directory, exist_ok=True)
         
         # 初始化Chroma
@@ -64,10 +64,10 @@ def launch_chat(agent: MemoryLaneAgent):
 def main():
     # 检查环境变量是否存在
     required_env_vars = [
-        "ZHIPUAI_API_Model",
-        "ZHIPU_API_KEY",
-        "ZHIPUAI_Embedding_model",
-        "ZHIPUAI_Embedding_key"
+        "ZHIPUAI_API_KEY",
+        "ZHIPUAI_MODEL_NAME",
+        "ZHIPUAI_EMBEDDING_KEY",
+        "ZHIPUAI_EMBEDDING_MODEL"
     ]
     
     for var in required_env_vars:
@@ -77,15 +77,15 @@ def main():
     try:
         # 初始化语言模型
         llm = ChatZhipuAI(
-            model=os.getenv("ZHIPUAI_API_Model"),
-            api_key=os.getenv("ZHIPU_API_KEY"),
+            model=os.getenv("ZHIPUAI_MODEL_NAME"),
+            api_key=os.getenv("ZHIPUAI_API_KEY"),
             temperature=0.7,
         )
 
         # 初始化embeddings
         embeddings = ZhipuAIEmbeddings(
-            model=os.getenv("ZHIPUAI_Embedding_model"),
-            api_key=os.getenv("ZHIPUAI_Embedding_key"),
+            model=os.getenv("ZHIPUAI_EMBEDDING_MODEL"),
+            api_key=os.getenv("ZHIPUAI_EMBEDDING_KEY"),
         )
 
         # 初始化向量数据库
