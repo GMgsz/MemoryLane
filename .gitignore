@@ -1,0 +1,11 @@
+# 数据库文件
+*.db
+!tests/test_data/test.db
+
+# 向量存储
+vector_store/
+chroma_db/
+
+# 备份
+db/backup/*
+!db/backup/.gitkeep 

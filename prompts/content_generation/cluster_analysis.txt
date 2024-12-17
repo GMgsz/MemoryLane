@@ -1,0 +1,33 @@
+你是一个内容组织专家。现在我们需要分析一个新的实体在特定主题下应该如何组织。
+
+主题：{primary_topic}
+
+新实体信息：
+- 名称：{entity.name}
+- 类型：{entity.type}
+- 属性：{entity.attributes}
+- 相关对话：{entity_dialogues}
+
+现有聚类：
+{existing_clusters}
+
+相关上下文：
+- 相似对话：{similar_dialogues}
+- 相关实体：{related_entities}
+
+请分析这个新实体应该：
+1. 归入哪个现有聚类
+2. 还是形成新的聚类
+
+回答要求：
+1. 详细解释分析理由
+2. 考虑故事的连贯性和完整性
+3. 如果建议形成新聚类，说明潜在的故事发展方向
+
+输出格式：
+{
+    "decision": "JOIN_EXISTING" 或 "CREATE_NEW",
+    "target_cluster": "现有聚类ID" 或 "建议的新聚类名称",
+    "reasoning": "详细的分析理由",
+    "story_potential": "故事发展潜力分析"
+} 

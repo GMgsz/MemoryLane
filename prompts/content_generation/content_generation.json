@@ -1,0 +1,10 @@
+{
+    "_type": "prompt",
+    "input_variables": [
+        "cluster_info",
+        "entities",
+        "dialogues",
+        "outline"
+    ],
+    "template_path": "content_generation.txt"
+} 
