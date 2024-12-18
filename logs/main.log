@@ -1,0 +1,10 @@
+2024-12-18 15:15:14,306 - main - ERROR - 环境检查失败
+2024-12-18 15:17:59,935 - main - ERROR - 环境检查失败
+2024-12-18 15:19:23,363 - main - ERROR - 环境检查失败
+2024-12-18 15:43:14,868 - main - ERROR - 处理对话失败: local variable 'response' referenced before assignment
+2024-12-18 16:27:21,983 - main - ERROR - 处理对话失败: DialogueAnalysisAgent.process_dialogue() takes 2 positional arguments but 3 were given
+2024-12-18 16:29:46,484 - main - ERROR - 处理对话失败: DialogueAnalysisAgent.process_dialogue() takes 2 positional arguments but 3 were given
+2024-12-18 16:30:56,183 - main - ERROR - 处理对话失败: 'DialogueAnalysisAgent' object has no attribute '_format_dialogue_history'
+2024-12-18 16:32:16,608 - main - ERROR - 处理对话失败: object str can't be used in 'await' expression
+2024-12-18 16:39:47,041 - main - ERROR - 处理对话失败: DialogueAnalysisAgent.process_dialogue() missing 1 required positional argument: 'user_response'
+2024-12-18 16:47:33,617 - main - ERROR - 处理对话失败: object NoneType can't be used in 'await' expression

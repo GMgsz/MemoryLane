@@ -10,6 +10,7 @@ from Utils.PromptTemplateBuilder import PromptTemplateBuilder
 from langchain.schema.output_parser import StrOutputParser
 from Utils.DatabaseManager import DatabaseManager
 
+
 @dataclass
 class DialogueTurn:
     """对话单元"""
@@ -18,6 +19,7 @@ class DialogueTurn:
     system_query: str
     user_response: str
     entity_ids: List[str] = field(default_factory=list)
+
 
 @dataclass
 class Entity:
@@ -28,6 +30,7 @@ class Entity:
     attributes: Dict[str, str] = field(default_factory=dict)
     topic_belongings: List[str] = field(default_factory=list)
 
+
 @dataclass
 class Topic:
     """话题"""
@@ -37,30 +40,31 @@ class Topic:
     related_entities: Set[str] = field(default_factory=set)
     dialogue_turns: List[str] = field(default_factory=list)
 
+
 class DialogueAnalysisAgent:
     """对话分析智能体"""
-    
+
     # 获取项目根目录
     ROOT_DIR = Path(__file__).parent.parent
-    
+
     # 预设的一级主题
     PRIMARY_TOPICS = [
         "挑战与困难", "家庭", "早年生活", "友谊", "影响",
-        "成就", "职业生涯", "兴趣", "信仰", "关键事件", 
+        "成就", "职业生涯", "兴趣", "信仰", "关键事件",
         "旅行", "其他"
     ]
-    
+
     def __init__(
-        self,
-        llm: BaseChatModel,
-        embeddings = None,
-        window_size: int = 3,
-        db_path: str = None,
-        db_manager=None
+            self,
+            llm: BaseChatModel,
+            embeddings=None,
+            window_size: int = 3,
+            db_path: str = None,
+            db_manager=None
     ):
         self.llm = llm
         self.window_size = window_size
-        
+
         # 初始化数据库管理器
         if db_manager is None:
             if db_path is None:
@@ -70,17 +74,17 @@ class DialogueAnalysisAgent:
         self.db_manager = db_manager
         if embeddings:
             self.db_manager.init_vector_store(embeddings)
-        
+
         # 对话窗口
         self.dialogue_window: List[DialogueTurn] = []
-        
+
         # 内存中的实体和话题缓存
         self.entities: Dict[str, Entity] = {}
         self.topics: Dict[str, Topic] = {}
-        
+
         # 初始化提示模板
         self._init_prompts()
-        
+
     def _init_prompts(self):
         """初始化提示模板"""
         try:
@@ -89,12 +93,12 @@ class DialogueAnalysisAgent:
                 prompt_path=os.path.join(self.ROOT_DIR, "prompts/dialogue_analysis"),
                 prompt_file="entity_extraction.json"
             )
-            print("\n=== Entity Extraction Template ===")
+            # print("\n=== Entity Extraction Template ===")
             self.entity_prompt = entity_prompt_builder.build()
-            print(self.entity_prompt.template)
-            print("================================\n")
+            # print(self.entity_prompt.template)
+            # print("================================\n")
             self.entity_chain = (self.entity_prompt | self.llm | StrOutputParser())
-            
+
             # 共指消解模板
             coreference_prompt_builder = PromptTemplateBuilder(
                 prompt_path=os.path.join(self.ROOT_DIR, "prompts/dialogue_analysis"),
@@ -102,7 +106,7 @@ class DialogueAnalysisAgent:
             )
             self.coreference_prompt = coreference_prompt_builder.build().partial()
             self.coreference_chain = (self.coreference_prompt | self.llm | StrOutputParser())
-            
+
             # 话题归属模板
             topic_prompt_builder = PromptTemplateBuilder(
                 prompt_path=os.path.join(self.ROOT_DIR, "prompts/dialogue_analysis"),
@@ -115,37 +119,30 @@ class DialogueAnalysisAgent:
             raise
 
     def process_dialogue(
-        self,
-        system_query: str,
-        user_response: str
+            self,
+            dialogue_turn: DialogueTurn
     ) -> None:
         """处理单轮对话"""
-        # 1. 创建对话单元
-        dialogue_turn = DialogueTurn(
-            id=f"turn_{datetime.now().strftime('%Y%m%d%H%M%S')}",
-            timestamp=datetime.now().isoformat(),
-            system_query=system_query,
-            user_response=user_response
-        )
-        
+
+
         # 2. 更新对话窗口
         self._update_dialogue_window(dialogue_turn)
-        
+
         # 3. 提取实体
         entities = self._extract_entities(dialogue_turn)
-        
+
         # 4. 共指消解
         references = self._resolve_coreference(dialogue_turn, entities)
-        
+
         # 5. 更新实体
         self._update_entities(entities, references)
-        
+
         # 6. 分析话题归属
         self._analyze_topic_belonging(entities)
-        
+
         # 7. 更新对话单元的实体ID列表
         dialogue_turn.entity_ids = list(self.entities.keys())
-        
+
         # 8. 持久化数据
         self._persist_data(dialogue_turn)
 
@@ -188,7 +185,7 @@ class DialogueAnalysisAgent:
             print("\n=== LLM Response (Entity Extraction) ===")
             print(response)
             print("=======================================\n")
-            
+
             if hasattr(response, 'content'):
                 response = response.content
             # 清理响应
@@ -201,9 +198,9 @@ class DialogueAnalysisAgent:
             return []
 
     def _resolve_coreference(
-        self,
-        dialogue_turn: DialogueTurn,
-        new_entities: List[Dict]
+            self,
+            dialogue_turn: DialogueTurn,
+            new_entities: List[Dict]
     ) -> List[Dict]:
         """共指消解"""
         # 1. 获取窗口内的实体信息
@@ -232,7 +229,7 @@ class DialogueAnalysisAgent:
             "window_entities": json.dumps(window_entities, ensure_ascii=False),
             "new_entities": json.dumps(new_entities, ensure_ascii=False)
         })
-        
+
         try:
             if hasattr(response, 'content'):
                 response = response.content
@@ -254,7 +251,7 @@ class DialogueAnalysisAgent:
                 if entity.name == entity_info["name"] and entity.type == entity_info["type"]:
                     existing_entity = entity
                     break
-            
+
             if existing_entity:
                 # 更新现有实体的属性
                 existing_entity.attributes.update(entity_info.get("attributes", {}))
@@ -283,22 +280,22 @@ class DialogueAnalysisAgent:
             print("\n=== Topic Analysis Input ===")
             print(json.dumps(input_data, ensure_ascii=False, indent=2))
             print("===========================\n")
-            
+
             response = self.topic_chain.invoke(input_data)
-            
-            print("\n=== LLM Response (Topic Analysis) ===")
-            print(response)
-            print("===================================\n")
-            
+
+            # print("\n=== LLM Response (Topic Analysis) ===")
+            # print(response)
+            # print("===================================\n")
+
             if hasattr(response, 'content'):
                 response = response.content
             # 清理响应
             response = self._clean_llm_response(response)
-            
+
             print("\n=== Cleaned Response ===")
             print(response)
             print("=======================\n")
-            
+
             result = json.loads(response)
             self._update_topic_belongings(result["topic_belongings"])
         except Exception as e:
@@ -311,7 +308,7 @@ class DialogueAnalysisAgent:
             # 只处理预定义的主题
             if belonging['primary_topic'] not in self.PRIMARY_TOPICS:
                 continue
-            
+
             # 1. 更新主话题
             topic_id = f"topic_{belonging['primary_topic']}"
             if topic_id not in self.topics:
@@ -320,13 +317,13 @@ class DialogueAnalysisAgent:
                     name=belonging["primary_topic"],
                     primary_category=belonging["primary_topic"]
                 )
-            
+
             # 2. 关联实体和话题
             for entity in self.entities.values():
                 if entity.name == belonging["entity"]:
                     entity.topic_belongings.append(topic_id)
                     self.topics[topic_id].related_entities.add(entity.id)
-                    
+
             # 3. 处理相关话题
             for related in belonging.get("related_topics", []):
                 related_id = f"topic_{related['topic']}"
@@ -347,7 +344,7 @@ class DialogueAnalysisAgent:
                 user_response=dialogue_turn.user_response,
                 entity_ids=dialogue_turn.entity_ids
             )
-            
+
             # 2. 保存实体
             for entity in self.entities.values():
                 self.db_manager.save_entity(
@@ -356,7 +353,7 @@ class DialogueAnalysisAgent:
                     entity_type=entity.type,
                     attributes=entity.attributes
                 )
-            
+
             # 3. 保存话题
             for topic in self.topics.values():
                 self.db_manager.save_topic(
@@ -364,7 +361,7 @@ class DialogueAnalysisAgent:
                     name=topic.name,
                     primary_category=topic.primary_category
                 )
-            
+
             # 4. 保存实体-话题关联
             for entity in self.entities.values():
                 for topic_id in entity.topic_belongings:
@@ -372,7 +369,7 @@ class DialogueAnalysisAgent:
                         entity_id=entity.id,
                         topic_id=topic_id
                     )
-            
+
             # 5. 保存到向量数据库
             if hasattr(self.db_manager, 'vector_store'):
                 combined_text = f"{dialogue_turn.system_query}\n{dialogue_turn.user_response}"
@@ -384,7 +381,7 @@ class DialogueAnalysisAgent:
                         "entity_ids": dialogue_turn.entity_ids
                     }
                 )
-            
+
         except Exception as e:
             print(f"持久化数据失败: {str(e)}")
             raise

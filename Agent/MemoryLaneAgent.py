@@ -73,8 +73,9 @@ class MemoryLaneAgent:
         }
         
         self.current_question = self.chain.invoke(context)
-        return self.current_question
-        
+        # return self.current_question
+        return "我们可以从您生活中最难忘的教训开始，您觉得如何?"
+
     def chat(self, user_message: str, verbose: bool = False) -> str:
         """处理用户输入并返回回复"""
         if self.current_question is None:

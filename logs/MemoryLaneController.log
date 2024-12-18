@@ -1,0 +1,53 @@
+2024-12-18 15:21:26,552 - MemoryLaneController - ERROR - Failed to initialize MemoryLaneController: [Errno 2] No such file or directory: 'D:\\PycharmProjects\\MemoryLaneV2\\prompts\\memory_lane\\main.json'
+2024-12-18 15:24:23,257 - MemoryLaneController - ERROR - Failed to initialize MemoryLaneController: [Errno 2] No such file or directory: 'D:\\PycharmProjects\\MemoryLaneV2\\prompts\\memory_lane\\main.json'
+2024-12-18 15:29:49,668 - MemoryLaneController - INFO - MemoryLaneController initialized successfully
+2024-12-18 15:31:54,056 - MemoryLaneController - INFO - Started new conversation
+2024-12-18 15:36:13,430 - MemoryLaneController - INFO - MemoryLaneController closed successfully
+2024-12-18 15:36:26,297 - MemoryLaneController - INFO - MemoryLaneController initialized successfully
+2024-12-18 15:36:45,390 - MemoryLaneController - INFO - Started new conversation
+2024-12-18 15:41:28,351 - MemoryLaneController - INFO - MemoryLaneController closed successfully
+2024-12-18 15:42:09,058 - MemoryLaneController - INFO - MemoryLaneController initialized successfully
+2024-12-18 15:42:30,833 - MemoryLaneController - INFO - Started new conversation
+2024-12-18 15:43:14,867 - MemoryLaneController - ERROR - Error processing user input: local variable 'response' referenced before assignment
+2024-12-18 15:44:37,721 - MemoryLaneController - INFO - MemoryLaneController closed successfully
+2024-12-18 15:45:55,283 - MemoryLaneController - INFO - MemoryLaneController initialized successfully
+2024-12-18 15:46:11,201 - MemoryLaneController - INFO - Started new conversation
+2024-12-18 15:48:14,223 - MemoryLaneController - INFO - MemoryLaneController closed successfully
+2024-12-18 15:48:45,954 - MemoryLaneController - INFO - MemoryLaneController initialized successfully
+2024-12-18 15:48:52,651 - MemoryLaneController - INFO - Started new conversation
+2024-12-18 16:26:49,839 - MemoryLaneController - INFO - MemoryLaneController closed successfully
+2024-12-18 16:26:59,743 - MemoryLaneController - INFO - MemoryLaneController initialized successfully
+2024-12-18 16:27:10,945 - MemoryLaneController - INFO - Started new conversation
+2024-12-18 16:27:21,983 - MemoryLaneController - ERROR - Error processing user input: DialogueAnalysisAgent.process_dialogue() takes 2 positional arguments but 3 were given
+2024-12-18 16:29:26,043 - MemoryLaneController - INFO - MemoryLaneController closed successfully
+2024-12-18 16:29:33,611 - MemoryLaneController - INFO - MemoryLaneController initialized successfully
+2024-12-18 16:29:39,545 - MemoryLaneController - INFO - Started new conversation
+2024-12-18 16:29:46,484 - MemoryLaneController - ERROR - Error processing user input: DialogueAnalysisAgent.process_dialogue() takes 2 positional arguments but 3 were given
+2024-12-18 16:30:38,332 - MemoryLaneController - INFO - MemoryLaneController closed successfully
+2024-12-18 16:30:45,864 - MemoryLaneController - INFO - MemoryLaneController initialized successfully
+2024-12-18 16:30:53,575 - MemoryLaneController - INFO - Started new conversation
+2024-12-18 16:30:56,183 - MemoryLaneController - ERROR - Error processing user input: 'DialogueAnalysisAgent' object has no attribute '_format_dialogue_history'
+2024-12-18 16:31:54,709 - MemoryLaneController - INFO - MemoryLaneController closed successfully
+2024-12-18 16:32:01,361 - MemoryLaneController - INFO - MemoryLaneController initialized successfully
+2024-12-18 16:32:11,739 - MemoryLaneController - INFO - Started new conversation
+2024-12-18 16:32:16,608 - MemoryLaneController - ERROR - Error processing user input: object str can't be used in 'await' expression
+2024-12-18 16:39:28,115 - MemoryLaneController - INFO - MemoryLaneController closed successfully
+2024-12-18 16:39:35,431 - MemoryLaneController - INFO - MemoryLaneController initialized successfully
+2024-12-18 16:39:44,104 - MemoryLaneController - INFO - Started new conversation
+2024-12-18 16:39:47,041 - MemoryLaneController - ERROR - Error processing user input: DialogueAnalysisAgent.process_dialogue() missing 1 required positional argument: 'user_response'
+2024-12-18 16:46:54,707 - MemoryLaneController - INFO - MemoryLaneController closed successfully
+2024-12-18 16:47:01,734 - MemoryLaneController - INFO - MemoryLaneController initialized successfully
+2024-12-18 16:47:09,805 - MemoryLaneController - INFO - Started new conversation
+2024-12-18 16:47:33,617 - MemoryLaneController - ERROR - Error processing user input: object NoneType can't be used in 'await' expression
+2024-12-18 16:49:18,954 - MemoryLaneController - INFO - MemoryLaneController closed successfully
+2024-12-18 16:49:26,132 - MemoryLaneController - INFO - MemoryLaneController initialized successfully
+2024-12-18 16:49:59,333 - MemoryLaneController - INFO - MemoryLaneController closed successfully
+2024-12-18 16:50:07,090 - MemoryLaneController - INFO - MemoryLaneController initialized successfully
+2024-12-18 16:50:22,171 - MemoryLaneController - INFO - Started new conversation
+2024-12-18 16:52:59,937 - MemoryLaneController - INFO - MemoryLaneController closed successfully
+2024-12-18 16:53:06,757 - MemoryLaneController - INFO - MemoryLaneController initialized successfully
+2024-12-18 16:53:21,768 - MemoryLaneController - INFO - Started new conversation
+2024-12-18 16:58:55,748 - MemoryLaneController - INFO - MemoryLaneController closed successfully
+2024-12-18 16:59:03,193 - MemoryLaneController - INFO - MemoryLaneController initialized successfully
+2024-12-18 16:59:23,008 - MemoryLaneController - INFO - Started new conversation
+2024-12-18 17:29:07,531 - MemoryLaneController - INFO - MemoryLaneController closed successfully

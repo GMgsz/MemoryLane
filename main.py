@@ -1,114 +1,76 @@
-# 加载环境变量
-import os
-from dotenv import load_dotenv, find_dotenv
-_ = load_dotenv(find_dotenv())
+import asyncio
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from controllers.memory_lane_controller import MemoryLaneController
+from scripts.check_env import check_environment
+import uvicorn
+from Utils.logger import setup_logger
 
-from langchain_community.chat_models import ChatZhipuAI
-from langchain_community.embeddings import ZhipuAIEmbeddings
-from Agent.MemoryLaneAgent import MemoryLaneAgent
-from langchain_chroma import Chroma
-from langchain.schema import Document
-import logging
+# 设置日志
+logger = setup_logger("main")
 
-# 配置日志
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# 检查环境
+if not check_environment():
+    logger.error("环境检查失败")
+    raise SystemExit(1)
 
-def init_vector_store(embeddings):
-    """初始化向量数据库，添加错误处理"""
+app = FastAPI(title="MemoryLane API")
+
+# 添加CORS中间件
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# 创建控制器实例
+controller = MemoryLaneController()
+
+class ChatInput(BaseModel):
+    user_input: str
+
+@app.post("/start")
+async def start_conversation():
+    """开始新的对话"""
     try:
-        # 使用标准的生产环境向量存储路径
-        persist_directory = os.getenv('PRODUCTION_VECTOR_STORE_PATH', 'db/production/vector_store')
-        os.makedirs(persist_directory, exist_ok=True)
-        
-        # 初始化Chroma
-        db = Chroma(
-            collection_name="chat_history",
-            embedding_function=embeddings,
-            persist_directory=persist_directory
-        )
-        
-        # 如果集合为空，添加一个初始文档
-        if db._collection.count() == 0:
-            db.add_documents([Document(page_content="对话初始化")])
-            
-        return db
+        first_question = await controller.start_conversation()
+        return {"system_query": first_question}
     except Exception as e:
-        logger.error(f"初始化向量数据库失败: {str(e)}")
-        raise
+        logger.error(f"启动对话失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
-def launch_chat(agent: MemoryLaneAgent):
-    """运行聊天循环"""
-    human_icon = "\U0001F468"
-    ai_icon = "\U0001F916"
-
-    print(f"{ai_icon}：你好！我是你的AI助手，让我们开始聊天吧！")
-    
-    # 获取第一个问题
-    first_question = agent.start_chat()
-    print(f"{ai_icon}：{first_question}")
-    
-    while True:
-        try:
-            user_input = input(f"{human_icon}：")
-            if user_input.strip().lower() in ["quit", "exit", "bye"]:
-                print(f"{ai_icon}：再见！")
-                break
-                
-            reply = agent.chat(user_input, verbose=False)
-            print(f"{ai_icon}：{reply}\n")
-        except Exception as e:
-            logger.error(f"聊天过程出错: {str(e)}")
-            print(f"{ai_icon}：抱歉，我遇到了一些问题，请重试。")
-
-def main():
-    # 检查环境变量是否存在
-    required_env_vars = [
-        "ZHIPUAI_API_KEY",
-        "ZHIPUAI_MODEL_NAME",
-        "ZHIPUAI_EMBEDDING_KEY",
-        "ZHIPUAI_EMBEDDING_MODEL"
-    ]
-    
-    for var in required_env_vars:
-        if not os.getenv(var):
-            raise ValueError(f"环境变量 {var} 未设置！请在.env文件中设置该变量。")
-
+@app.post("/chat")
+async def chat(chat_input: ChatInput):
+    """处理用户输入的对话接口"""
     try:
-        # 初始化语言模型
-        llm = ChatZhipuAI(
-            model=os.getenv("ZHIPUAI_MODEL_NAME"),
-            api_key=os.getenv("ZHIPUAI_API_KEY"),
-            temperature=0.7,
-        )
-
-        # 初始化embeddings
-        embeddings = ZhipuAIEmbeddings(
-            model=os.getenv("ZHIPUAI_EMBEDDING_MODEL"),
-            api_key=os.getenv("ZHIPUAI_EMBEDDING_KEY"),
-        )
-
-        # 初始化向量数据库
-        db = init_vector_store(embeddings)
-        retriever = db.as_retriever(
-            search_kwargs={"k": 3}  # 检索最相关的3条历史记录
-        )
-
-        # 初始化聊天智能体
-        agent = MemoryLaneAgent(
-            llm=llm,
-            prompts_path="./prompts/main",
-            main_prompt_file="main.json",
-            memory_retriever=retriever,
-            max_token_limit=4000
-        )
-
-        # 启动聊天
-        launch_chat(agent)
-        
+        result = await controller.process_user_input(chat_input.user_input)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"程序初始化失败: {str(e)}")
-        raise
+        logger.error(f"处理对话失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/contents")
+async def get_contents(topic: str = None):
+    """获取生成的内容"""
+    try:
+        contents = await controller.get_generated_contents(topic)
+        return {"contents": contents}
+    except Exception as e:
+        logger.error(f"获取内容失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """关闭应用时的清理工作"""
+    try:
+        await controller.close()
+    except Exception as e:
+        logger.error(f"关闭应用失败: {str(e)}")
 
 if __name__ == "__main__":
-    main()
+    uvicorn.run(app, host="0.0.0.0", port=8000) 
